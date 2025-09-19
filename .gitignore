@@ -2,3 +2,5 @@ target
 .ccls-cache
 .gdb_history
 .DS_Store
+.direnv
+result
