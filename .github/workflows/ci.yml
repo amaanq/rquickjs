@@ -203,6 +203,12 @@ jobs:
             features: full-async
 
           - task: bindings
+            os: ubuntu-latest
+            rust: stable
+            target: armv7-unknown-linux-gnueabihf
+            features: full-async
+
+          - task: bindings
             os: ubuntu-24.04
             rust: nightly
             target: loongarch64-unknown-linux-musl
@@ -272,6 +278,7 @@ jobs:
         run: |
           case "${{ matrix.target }}" in
             i686-*) SYSTEM_ARCH=i386 ;;
+            armv7-*) SYSTEM_ARCH=armhf ;;
           esac
           GCC_TARGET=$(printf "${{ matrix.target }}" | sed 's/-unknown-/-/' | sed 's/arm[^-]*/arm/g')
           ENV_TARGET=$(printf "${{ matrix.target }}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
