@@ -45,7 +45,7 @@ pub trait JsClass<'js>: Trace<'js> + JsLifetime<'js> + Sized {
 
     /// The function which will be called if [`Self::CALLABLE`] is true and an an object with this
     /// class is called as if it is a function.
-    fn call<'a>(this: &JsCell<'js, Self>, params: Params<'a, 'js>) -> Result<Value<'js>> {
+    fn call(this: &JsCell<'js, Self>, params: Params<'js>) -> Result<Value<'js>> {
         let _ = this;
         Ok(Value::new_undefined(params.ctx().clone()))
     }

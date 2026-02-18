@@ -28,13 +28,13 @@ pub trait IntoJsFunc<'js, P> {
     fn param_requirements() -> ParamRequirement;
 
     /// Call the function with the given parameters.
-    fn call<'a>(&self, params: Params<'a, 'js>) -> Result<Value<'js>>;
+    fn call(&self, params: Params<'js>) -> Result<Value<'js>>;
 }
 
 /// A trait for functions callable from JavaScript but static,
 /// Used for implementing callable objects.
 pub trait StaticJsFunction {
-    fn call<'a, 'js>(params: Params<'a, 'js>) -> Result<Value<'js>>;
+    fn call<'js>(params: Params<'js>) -> Result<Value<'js>>;
 }
 
 /// A JavaScript function.
@@ -48,7 +48,7 @@ impl<'js> Function<'js> {
     where
         F: IntoJsFunc<'js, P> + 'js,
     {
-        let func = Box::new(move |params: Params<'_, 'js>| {
+        let func = Box::new(move |params: Params<'js>| {
             params.check_params(F::param_requirements())?;
             f.call(params)
         }) as Box<dyn RustFunc<'js> + 'js>;
@@ -196,7 +196,7 @@ impl<'js> Constructor<'js> {
         F: IntoJsFunc<'js, P> + 'js,
         C: JsClass<'js>,
     {
-        let func = Box::new(move |params: Params<'_, 'js>| -> Result<Value<'js>> {
+        let func = Box::new(move |params: Params<'js>| -> Result<Value<'js>> {
             params.check_params(F::param_requirements())?;
             let this = params.this();
             let ctx = params.ctx().clone();
@@ -241,7 +241,7 @@ impl<'js> Constructor<'js> {
         F: IntoJsFunc<'js, P> + 'js,
     {
         let proto_clone = prototype.clone();
-        let func = Box::new(move |params: Params<'_, 'js>| -> Result<Value<'js>> {
+        let func = Box::new(move |params: Params<'js>| -> Result<Value<'js>> {
             params.check_params(F::param_requirements())?;
             let this = params.this();
             let proto = this

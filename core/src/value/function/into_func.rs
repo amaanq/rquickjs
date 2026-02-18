@@ -24,7 +24,7 @@ macro_rules! impl_to_js_function {
             }
 
             #[allow(non_snake_case)]
-            fn call(&self, params: Params<'_, 'js>) -> Result<Value<'js>> {
+            fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
                 let ctx = params.ctx().clone();
                 let ($($t,)*) = <($($t,)*)>::from_params(&mut params.access())?;
                 let r = (self)($($t),*);
@@ -46,7 +46,7 @@ macro_rules! impl_to_js_function {
             }
 
             #[allow(non_snake_case)]
-            fn call(&self, params: Params<'_, 'js>) -> Result<Value<'js>> {
+            fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
                 let ctx = params.ctx().clone();
                 let ($($t,)*) = <($($t,)*)>::from_params(&mut params.access())?;
                 let fut = (self.0)($($t),*);
@@ -67,7 +67,7 @@ macro_rules! impl_to_js_function {
             }
 
             #[allow(non_snake_case)]
-            fn call(&self, params: Params<'_, 'js>) -> Result<Value<'js>> {
+            fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
                 let ctx = params.ctx().clone();
                 let ($($t,)*) = <($($t,)*)>::from_params(&mut params.access())?;
                 let mut lock = self.0.try_borrow_mut().map_err(|_| Error::FunctionBorrow(BorrowError::AlreadyBorrowed))?;
@@ -90,7 +90,7 @@ macro_rules! impl_to_js_function {
             }
 
             #[allow(non_snake_case)]
-            fn call(&self, params: Params<'_, 'js>) -> Result<Value<'js>> {
+            fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
                 let ctx = params.ctx().clone();
                 let ($($t,)*) = <($($t,)*)>::from_params(&mut params.access())?;
                 let mut lock = self.0.0.try_borrow_mut().map_err(|_| Error::FunctionBorrow(BorrowError::AlreadyBorrowed))?;
@@ -111,7 +111,7 @@ macro_rules! impl_to_js_function {
             }
 
             #[allow(non_snake_case)]
-            fn call(&self, params: Params<'_, 'js>) -> Result<Value<'js>> {
+            fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
                 let ctx = params.ctx().clone();
                 let ($($t,)*) = <($($t,)*)>::from_params(&mut params.access())?;
                 let lock = self.0.take().ok_or(Error::FunctionBorrow(BorrowError::AlreadyUsed))?;
@@ -134,7 +134,7 @@ macro_rules! impl_to_js_function {
             }
 
             #[allow(non_snake_case)]
-            fn call(&self, params: Params<'_, 'js>) -> Result<Value<'js>> {
+            fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
                 let ctx = params.ctx().clone();
                 let ($($t,)*) = <($($t,)*)>::from_params(&mut params.access())?;
                 let lock = self.0.0.take().ok_or(Error::FunctionBorrow(BorrowError::AlreadyUsed))?;
