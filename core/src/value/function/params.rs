@@ -3,20 +3,20 @@ use crate::{
     qjs, Ctx, FromJs, Result, Value,
 };
 use alloc::vec::Vec;
-use core::slice;
+use core::ptr;
 
 /// A struct which contains the values a callback is called with.
 ///
 /// Arguments retrieved from the JavaScript side for calling Rust functions.
-pub struct Params<'a, 'js> {
+pub struct Params<'js> {
     ctx: Ctx<'js>,
     function: qjs::JSValue,
     this: qjs::JSValue,
-    args: &'a [qjs::JSValue],
+    args: Vec<qjs::JSValue>,
     is_constructor: bool,
 }
 
-impl<'a, 'js> Params<'a, 'js> {
+impl<'js> Params<'js> {
     /// Create params from the arguments returned by the class callback.
     pub(crate) unsafe fn from_ffi_class(
         ctx: *mut qjs::JSContext,
@@ -26,15 +26,20 @@ impl<'a, 'js> Params<'a, 'js> {
         argv: *mut qjs::JSValue,
         _flags: qjs::c_int,
     ) -> Self {
-        let args = if argv.is_null() {
-            assert_eq!(
-                argc, 0,
+        let args = if argc <= 0 || argv.is_null() {
+            assert!(
+                argc == 0 || !argv.is_null(),
                 "got a null pointer from quickjs for a non-zero number of args"
             );
-            [].as_slice()
+            Vec::new()
         } else {
             let argc = usize::try_from(argc).expect("invalid argument number");
-            slice::from_raw_parts(argv, argc)
+            // Copy args to a properly aligned Vec to avoid UB from potentially
+            // unaligned pointers on platforms where align_of::<JSValue>() > 4
+            // (e.g. i686-pc-windows-msvc where align_of::<u64>() == 8).
+            (0..argc)
+                .map(|i| ptr::read_unaligned(argv.add(i)))
+                .collect()
         };
 
         Self {
@@ -103,7 +108,7 @@ impl<'a, 'js> Params<'a, 'js> {
     }
 
     /// Turns the params into an accessor object for extracting the arguments.
-    pub fn access(self) -> ParamsAccessor<'a, 'js> {
+    pub fn access(self) -> ParamsAccessor<'js> {
         ParamsAccessor {
             params: self,
             offset: 0,
@@ -112,12 +117,12 @@ impl<'a, 'js> Params<'a, 'js> {
 }
 
 /// Accessor to parameters used for retrieving arguments in order one at the time.
-pub struct ParamsAccessor<'a, 'js> {
-    params: Params<'a, 'js>,
+pub struct ParamsAccessor<'js> {
+    params: Params<'js>,
     offset: usize,
 }
 
-impl<'a, 'js> ParamsAccessor<'a, 'js> {
+impl<'js> ParamsAccessor<'js> {
     /// Returns the context associated with the params.
     pub fn ctx(&self) -> &Ctx<'js> {
         self.params.ctx()
@@ -247,7 +252,7 @@ pub trait FromParam<'js>: Sized {
     fn param_requirement() -> ParamRequirement;
 
     /// Convert from a parameter value.
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self>;
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self>;
 }
 
 impl<'js, T: FromJs<'js>> FromParam<'js> for T {
@@ -255,7 +260,7 @@ impl<'js, T: FromJs<'js>> FromParam<'js> for T {
         ParamRequirement::single()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         let ctx = params.ctx().clone();
         T::from_js(&ctx, params.arg())
     }
@@ -266,7 +271,7 @@ impl<'js> FromParam<'js> for Ctx<'js> {
         ParamRequirement::none()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         Ok(params.ctx().clone())
     }
 }
@@ -276,7 +281,7 @@ impl<'js, T: FromJs<'js>> FromParam<'js> for Opt<T> {
         ParamRequirement::optional()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         if !params.is_empty() {
             let ctx = params.ctx().clone();
             Ok(Opt(Some(T::from_js(&ctx, params.arg())?)))
@@ -291,7 +296,7 @@ impl<'js, T: FromJs<'js>> FromParam<'js> for This<T> {
         ParamRequirement::any()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         T::from_js(params.ctx(), params.this()).map(This)
     }
 }
@@ -301,7 +306,7 @@ impl<'js, T: FromJs<'js>> FromParam<'js> for FuncArg<T> {
         ParamRequirement::any()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         T::from_js(params.ctx(), params.function()).map(FuncArg)
     }
 }
@@ -311,7 +316,7 @@ impl<'js, T: FromJs<'js>> FromParam<'js> for Rest<T> {
         ParamRequirement::any()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         let mut res = Vec::with_capacity(params.len());
         for _ in 0..params.len() {
             let p = params.arg();
@@ -326,7 +331,7 @@ impl<'js, T: FromParams<'js>> FromParam<'js> for Flat<T> {
         T::param_requirements()
     }
 
-    fn from_param<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(params: &mut ParamsAccessor<'js>) -> Result<Self> {
         T::from_params(params).map(Flat)
     }
 }
@@ -336,7 +341,7 @@ impl<'js> FromParam<'js> for Exhaustive {
         ParamRequirement::exhaustive()
     }
 
-    fn from_param<'a>(_params: &mut ParamsAccessor<'a, 'js>) -> Result<Self> {
+    fn from_param(_params: &mut ParamsAccessor<'js>) -> Result<Self> {
         Ok(Exhaustive)
     }
 }
@@ -347,7 +352,7 @@ pub trait FromParams<'js>: Sized {
     fn param_requirements() -> ParamRequirement;
 
     /// Convert from a parameter value.
-    fn from_params<'a>(params: &mut ParamsAccessor<'a, 'js>) -> Result<Self>;
+    fn from_params(params: &mut ParamsAccessor<'js>) -> Result<Self>;
 }
 
 macro_rules! impl_from_params{
@@ -363,7 +368,7 @@ macro_rules! impl_from_params{
                     $(.combine($t::param_requirement()))*
             }
 
-            fn from_params<'a>(_args: &mut ParamsAccessor<'a,'js>) -> Result<Self>{
+            fn from_params(_args: &mut ParamsAccessor<'js>) -> Result<Self>{
                 Ok((
                     $($t::from_param(_args)?,)*
                 ))

@@ -252,7 +252,7 @@ impl JsFunction {
                     #(#arg_type_requirements)*
                 }
 
-                fn call<'a>(&self, params: #lib_crate::function::Params<'a,'js>) -> #lib_crate::Result<#lib_crate::Value<'js>>{
+                fn call(&self, params: #lib_crate::function::Params<'js>) -> #lib_crate::Result<#lib_crate::Value<'js>>{
                     let ctx = params.ctx().clone();
                     params.check_params(Self::param_requirements())?;
                     let mut _params = params.access();
