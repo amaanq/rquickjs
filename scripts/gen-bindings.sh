@@ -36,3 +36,4 @@ copy_bindings x86_64-pc-windows-gnu aarch64-pc-windows-msvc
 
 # Generate i686-pc-windows-gnu (c_uint, 8-byte aligned u64 — differs from i686-linux)
 build_target i686-pc-windows-gnu
+build_target i686-pc-windows-msvc

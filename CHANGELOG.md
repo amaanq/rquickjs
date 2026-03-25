@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add pre-generated bindings for `i686-pc-windows-gnu`
+- Add pre-generated bindings for `i686-pc-windows-msvc`
 
 ### Fixed
 
