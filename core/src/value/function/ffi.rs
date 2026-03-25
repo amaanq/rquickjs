@@ -23,14 +23,14 @@ pub unsafe extern "C" fn defer_call_job(
 /// A trait for dynamic callbacks to Rust.
 pub trait RustFunc<'js> {
     /// Call the actual function with a given set of parameters and return a function.
-    fn call<'a>(&self, params: Params<'a, 'js>) -> Result<Value<'js>>;
+    fn call(&self, params: Params<'js>) -> Result<Value<'js>>;
 }
 
 impl<'js, F> RustFunc<'js> for F
 where
-    for<'a> F: Fn(Params<'a, 'js>) -> Result<Value<'js>>,
+    F: Fn(Params<'js>) -> Result<Value<'js>>,
 {
-    fn call<'a>(&self, params: Params<'a, 'js>) -> Result<Value<'js>> {
+    fn call(&self, params: Params<'js>) -> Result<Value<'js>> {
         (self)(params)
     }
 }
@@ -62,7 +62,7 @@ impl<'js> JsClass<'js> for RustFunction<'js> {
         Ok(None)
     }
 
-    fn call<'a>(this: &JsCell<'js, Self>, params: Params<'a, 'js>) -> Result<Value<'js>> {
+    fn call(this: &JsCell<'js, Self>, params: Params<'js>) -> Result<Value<'js>> {
         this.borrow().0.call(params)
     }
 }
